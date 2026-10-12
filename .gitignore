@@ -1,0 +1,19 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Node.js / Next.js
+**/node_modules/
+**/.next/
+
+# Spring Boot / Maven
+**/target/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
