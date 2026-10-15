@@ -15,4 +15,7 @@ public interface StudentService {
     StudentResponse updateStudent(Long id, StudentRequest request);
 
     void deleteStudent(Long id);
+
+    /** The student record linked to the given login account. */
+    StudentResponse getStudentForUser(Long userId);
 }

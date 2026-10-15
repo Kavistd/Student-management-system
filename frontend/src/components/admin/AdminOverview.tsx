@@ -1,383 +1,283 @@
-
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
-import axios from "axios";
 import {
-  Activity,
   ArrowRight,
   BookOpen,
   GraduationCap,
-  LayoutDashboard,
-  Menu,
+  LockKeyhole,
   RefreshCw,
-  ShieldCheck,
+  UserCog,
+  UserRoundX,
   Users,
-  X,
 } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 
-import api from "@/lib/api";
-import type { Student } from "@/types/student";
+import AdminShell from "@/components/layout/AdminShell";
+import ChartCard from "@/components/admin/ChartCard";
+import { countBy } from "@/components/admin/CountBarChart";
+import Badge from "@/components/ui/Badge";
+import Button from "@/components/ui/Button";
+import StatCard from "@/components/ui/StatCard";
+import { EmptyState, ErrorState, LoadingState } from "@/components/ui/StatePanel";
+import { useAuthUser } from "@/components/auth/AuthProvider";
+import { useApiResource } from "@/hooks/useApiResource";
 import type { Course } from "@/types/course";
+import type { Student } from "@/types/student";
+import type { User } from "@/types/user";
 
-type OverviewData = {
-  students: Student[];
-  courses: Course[];
-  users: unknown[];
-};
-
-const navigation = [
-  { label: "Overview", href: "/admin/dashboard", icon: LayoutDashboard },
-  { label: "Students", href: "/students", icon: Users },
-  { label: "Courses", href: "/courses", icon: BookOpen },
+const shortcuts = [
+  {
+    label: "Manage students",
+    description: "Add, edit, and remove student records",
+    href: "/students",
+    icon: Users,
+  },
+  {
+    label: "Manage courses",
+    description: "Maintain the course catalog",
+    href: "/courses",
+    icon: BookOpen,
+  },
+  {
+    label: "User accounts",
+    description: "Review registered accounts and roles",
+    href: "/admin/users",
+    icon: UserCog,
+  },
 ];
 
 export default function AdminOverview() {
-  const [data, setData] = useState<OverviewData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [menuOpen, setMenuOpen] = useState(false);
+  const students = useApiResource<Student[]>("/api/students");
+  const courses = useApiResource<Course[]>("/api/courses");
+  const users = useApiResource<User[]>("/api/users");
+  const account = useAuthUser();
 
-  const loadOverview = useCallback(async () => {
-    setLoading(true);
-    setError("");
+  const resources = [students, courses, users];
+  const anyLoading = resources.some((resource) => resource.loading);
+  const allDenied = resources.every(
+    (resource) => resource.error?.kind === "unauthorized" || resource.error?.kind === "forbidden"
+  );
 
-    try {
-      const [students, courses, users] = await Promise.all([
-        api.get<Student[]>("/api/students"),
-        api.get<Course[]>("/api/courses"),
-        api.get<unknown[]>("/api/users"),
-      ]);
+  const reloadAll = () => resources.forEach((resource) => resource.reload());
 
-      setData({
-        students: students.data,
-        courses: courses.data,
-        users: users.data,
-      });
-    } catch (err) {
-      setData(null);
-      setError(
-        axios.isAxiosError(err)
-          ? "Unable to load records. Backend authentication may be required."
-          : "Unable to load dashboard information."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const studentsPerCourse = useMemo(
+    () => countBy(students.data ?? [], (student) => student.course?.trim() || "Not assigned"),
+    [students.data]
+  );
 
-  useEffect(() => {
-    void loadOverview();
-  }, [loadOverview]);
+  const courseDurations = useMemo(
+    () =>
+      countBy(
+        courses.data ?? [],
+        (course) =>
+          course.durationMonths != null
+            ? `${course.durationMonths} month${course.durationMonths === 1 ? "" : "s"}`
+            : "Not specified"
+      ),
+    [courses.data]
+  );
 
-  const metrics = [
-    {
-      label: "Total Students",
-      value: data?.students.length,
-      icon: GraduationCap,
-      iconStyle: "bg-blue-50 text-blue-600",
-    },
-    {
-      label: "Total Courses",
-      value: data?.courses.length,
-      icon: BookOpen,
-      iconStyle: "bg-violet-50 text-violet-600",
-    },
-    {
-      label: "Registered Users",
-      value: data?.users.length,
-      icon: Users,
-      iconStyle: "bg-emerald-50 text-emerald-600",
-    },
-  ];
+  const accountsByRole = useMemo(
+    () => countBy(users.data ?? [], (user) => (user.role === "ADMIN" ? "Admin" : "Student")),
+    [users.data]
+  );
 
-  const chartData = [
-    { name: "Students", count: data?.students.length ?? 0 },
-    { name: "Courses", count: data?.courses.length ?? 0 },
-    { name: "Users", count: data?.users.length ?? 0 },
-  ];
+  const unassignedCount = students.data?.filter((student) => !student.course?.trim()).length;
+
+  const recentStudents = useMemo(
+    () => [...(students.data ?? [])].sort((a, b) => b.id - a.id).slice(0, 5),
+    [students.data]
+  );
 
   return (
-    <div className="min-h-screen bg-slate-50 lg:flex">
-      <aside className="hidden w-64 shrink-0 flex-col bg-slate-950 px-5 py-7 text-white lg:flex">
-        <Link href="/" className="flex items-center gap-3 px-2">
-          <div className="rounded-xl bg-blue-600 p-2.5">
-            <GraduationCap size={24} />
-          </div>
-          <div>
-            <p className="text-lg font-bold">StudentMS</p>
-            <p className="text-xs text-slate-400">Administration</p>
-          </div>
-        </Link>
-
-        <p className="mb-4 mt-12 px-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
-          Management
-        </p>
-
-        <nav className="space-y-2">
-          {navigation.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition ${
-                  item.href === "/admin/dashboard"
-                    ? "bg-blue-600 text-white"
-                    : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                }`}
-              >
-                <Icon size={19} />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="mt-auto rounded-2xl border border-slate-700 bg-slate-900 p-4">
-          <ShieldCheck className="mb-3 text-blue-400" size={25} />
-          <p className="text-sm font-semibold">Admin Workspace</p>
-          <p className="mt-2 text-xs leading-5 text-slate-400">
-            Role-based access controls will be enabled with JWT authentication.
+    <AdminShell
+      eyebrow="Administration"
+      title="Dashboard overview"
+      description="Live totals and breakdowns from your student, course, and account records."
+      actions={
+        <Button variant="secondary" onClick={reloadAll} disabled={anyLoading}>
+          <RefreshCw size={16} className={anyLoading ? "animate-spin" : ""} aria-hidden />
+          Refresh data
+        </Button>
+      }
+    >
+      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-700 to-indigo-700 p-6 text-white shadow-lg shadow-blue-900/10 sm:p-8">
+        <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-white/10" aria-hidden />
+        <div className="relative max-w-2xl">
+          <h2 className="text-xl font-bold sm:text-2xl">Welcome back, {account?.username ?? "Administrator"}</h2>
+          <p className="mt-2 text-sm leading-6 text-blue-100">
+            Manage student records, keep the course catalog current, and review registered
+            accounts from one workspace.
           </p>
         </div>
-      </aside>
+      </section>
 
-      <div className="min-w-0 flex-1">
-        <header className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4 lg:px-9">
-          <div className="flex items-center gap-3">
-            <button
-              className="rounded-lg p-2 text-slate-700 lg:hidden"
-              aria-label="Toggle navigation"
-              onClick={() => setMenuOpen(!menuOpen)}
-            >
-              {menuOpen ? <X size={22} /> : <Menu size={22} />}
-            </button>
-            <div>
-              <h1 className="text-lg font-bold text-slate-900">Admin Overview</h1>
-              <p className="text-xs text-slate-500">Academic management center</p>
-            </div>
-          </div>
+      {allDenied && (
+        <div
+          role="status"
+          className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+        >
+          <LockKeyhole size={18} className="mt-0.5 shrink-0" aria-hidden />
+          <p>
+            <span className="font-semibold">Admin data couldn&apos;t be loaded.</span> Your
+            session may have ended or your account lacks administrator access. Sign in again
+            with an administrator account.
+          </p>
+        </div>
+      )}
 
-          <Link
-            href="/"
-            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            Home
-          </Link>
-        </header>
+      <section aria-label="Summary" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Total students"
+          value={students.data?.length}
+          hint="Student records in the database"
+          icon={GraduationCap}
+          tone="bg-blue-50 text-blue-600"
+          loading={students.loading}
+          error={students.error}
+        />
+        <StatCard
+          label="Courses"
+          value={courses.data?.length}
+          hint="Courses in the catalog"
+          icon={BookOpen}
+          tone="bg-violet-50 text-violet-600"
+          loading={courses.loading}
+          error={courses.error}
+        />
+        <StatCard
+          label="User accounts"
+          value={users.data?.length}
+          hint="Registered login accounts"
+          icon={UserCog}
+          tone="bg-emerald-50 text-emerald-600"
+          loading={users.loading}
+          error={users.error}
+        />
+        <StatCard
+          label="Without a course"
+          value={unassignedCount}
+          hint="Students with no course assigned"
+          icon={UserRoundX}
+          tone="bg-amber-50 text-amber-600"
+          loading={students.loading}
+          error={students.error}
+        />
+      </section>
 
-        {menuOpen && (
-          <nav className="space-y-1 border-b border-slate-200 bg-white p-4 lg:hidden">
-            {navigation.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMenuOpen(false)}
-                className="block rounded-lg px-4 py-3 text-sm font-medium text-slate-700 hover:bg-blue-50"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        )}
-
-        <main className="mx-auto max-w-7xl space-y-7 p-5 lg:p-9">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold text-blue-600">ADMINISTRATION</p>
-              <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
-                Academic Overview
-              </h2>
-              <p className="mt-2 text-sm text-slate-500">
-                Monitor students, courses, and registered accounts.
-              </p>
-            </div>
-
-            <button
-              onClick={() => void loadOverview()}
-              disabled={loading}
-              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
-            >
-              <RefreshCw size={17} className={loading ? "animate-spin" : ""} />
-              Refresh
-            </button>
-          </div>
-
-          <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-700 to-indigo-700 p-8 text-white shadow-lg shadow-blue-100">
-            <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-white/10" />
-            <div className="relative">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-semibold">
-                <Activity size={15} />
-                Academic Administration
-              </div>
-              <h3 className="mt-5 text-2xl font-bold md:text-3xl">
-                Manage your institution with clarity.
-              </h3>
-              <p className="mt-3 max-w-xl text-sm leading-7 text-blue-100">
-                Explore academic records and keep essential information
-                organized in one central workspace.
-              </p>
-            </div>
-          </section>
-
-          {error && (
-            <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-              {error} Dashboard statistics will be available after authentication is connected.
-            </div>
-          )}
-
-          <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            {metrics.map((metric) => {
-              const Icon = metric.icon;
+      <div className="grid gap-6 xl:grid-cols-3">
+        <div className="xl:col-span-2">
+          <ChartCard
+            title="Students per course"
+            description="Grouped by the course recorded on each student"
+            loading={students.loading}
+            error={students.error}
+            data={studentsPerCourse}
+            valueLabel="Students"
+            emptyMessage="Add student records to see how they are distributed across courses."
+          />
+        </div>
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-base font-bold text-slate-900">Quick actions</h2>
+          <p className="mt-0.5 text-sm text-slate-500">Jump to a management area</p>
+          <div className="mt-4 space-y-3">
+            {shortcuts.map((item) => {
+              const Icon = item.icon;
               return (
-                <div key={metric.label} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <div className={`inline-flex rounded-xl p-3 ${metric.iconStyle}`}>
-                    <Icon size={24} />
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="flex items-center gap-3 rounded-xl border border-slate-100 p-3.5 transition hover:border-blue-200 hover:bg-blue-50/40 focus-visible:outline-2 focus-visible:outline-blue-600"
+                >
+                  <div className="rounded-xl bg-blue-50 p-2.5 text-blue-600">
+                    <Icon size={18} aria-hidden />
                   </div>
-                  <p className="mt-6 text-sm font-medium text-slate-500">{metric.label}</p>
-                  <p className="mt-2 text-3xl font-bold text-slate-900">
-                    {loading ? "..." : error ? "Pending" : metric.value ?? "—"}
-                  </p>
-                  <p className="mt-2 text-xs text-slate-400">Database records</p>
-                </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-slate-900">{item.label}</p>
+                    <p className="text-xs text-slate-500">{item.description}</p>
+                  </div>
+                  <ArrowRight size={16} className="text-slate-400" aria-hidden />
+                </Link>
               );
             })}
-          </section>
-
-          <section className="grid gap-6 xl:grid-cols-5">
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-3">
-              <div className="mb-7">
-                <h3 className="text-lg font-bold text-slate-900">Records Overview</h3>
-                <p className="mt-1 text-sm text-slate-500">
-                  Current student, course, and user totals
-                </p>
-              </div>
-
-              <div className="h-72">
-                {loading ? (
-                  <div className="flex h-full items-center justify-center text-sm text-slate-500">
-                    Loading records...
-                  </div>
-                ) : error ? (
-                  <div className="flex h-full items-center justify-center text-sm text-slate-500">
-                    Analytics unavailable
-                  </div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="name" />
-                      <YAxis allowDecimals={false} />
-                      <Tooltip />
-                      <Bar dataKey="count" fill="#2563eb" radius={[8, 8, 0, 0]} maxBarSize={60} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
-              <h3 className="text-lg font-bold text-slate-900">Management Shortcuts</h3>
-              <p className="mt-1 text-sm text-slate-500">
-                Quickly access academic modules
-              </p>
-
-              <div className="mt-7 space-y-4">
-                {[
-                  {
-                    label: "Student Records",
-                    description: "Browse registered students",
-                    href: "/students",
-                    icon: Users,
-                  },
-                  {
-                    label: "Course Catalog",
-                    description: "Browse available courses",
-                    href: "/courses",
-                    icon: BookOpen,
-                  },
-                ].map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className="flex items-center gap-4 rounded-xl border border-slate-100 p-4 transition hover:border-blue-200 hover:bg-blue-50/40"
-                    >
-                      <div className="rounded-xl bg-blue-50 p-3 text-blue-600">
-                        <Icon size={21} />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-slate-900">{item.label}</p>
-                        <p className="mt-1 text-xs text-slate-500">{item.description}</p>
-                      </div>
-                      <ArrowRight size={18} className="text-slate-400" />
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
-
-          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-100 p-6">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Student Directory</h3>
-                <p className="mt-1 text-sm text-slate-500">Recent student records</p>
-              </div>
-              <Link href="/students" className="text-sm font-semibold text-blue-600 hover:underline">
-                View All
-              </Link>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[550px] text-left text-sm">
-                <thead className="bg-slate-50 text-slate-500">
-                  <tr>
-                    <th className="px-6 py-4">Student</th>
-                    <th className="px-6 py-4">Email</th>
-                    <th className="px-6 py-4">Course</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {loading ? (
-                    <tr><td colSpan={3} className="px-6 py-8 text-center text-slate-500">Loading students...</td></tr>
-                  ) : error ? (
-                    <tr><td colSpan={3} className="px-6 py-8 text-center text-slate-500">Student records unavailable</td></tr>
-                  ) : data?.students.length ? (
-                    data.students.slice(0, 5).map((student) => (
-                      <tr key={student.id} className="hover:bg-slate-50">
-                        <td className="px-6 py-4 font-semibold text-slate-900">
-                          {student.firstName} {student.lastName}
-                        </td>
-                        <td className="px-6 py-4 text-slate-600">{student.email}</td>
-                        <td className="px-6 py-4 text-slate-600">{student.course || "Not assigned"}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr><td colSpan={3} className="px-6 py-8 text-center text-slate-500">No student records found</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <p className="text-center text-xs text-slate-400">
-            StudentMS Admin Workspace · Authentication integration pending
-          </p>
-        </main>
+          </div>
+        </section>
       </div>
-    </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <ChartCard
+          title="Course durations"
+          description="Number of courses by programme length"
+          loading={courses.loading}
+          error={courses.error}
+          data={courseDurations}
+          valueLabel="Courses"
+          emptyMessage="Add courses to the catalog to see their durations."
+        />
+        <ChartCard
+          title="Accounts by role"
+          description="Registered login accounts grouped by role"
+          loading={users.loading}
+          error={users.error}
+          data={accountsByRole}
+          valueLabel="Accounts"
+          emptyMessage="No login accounts have been registered yet."
+        />
+      </div>
+
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between gap-4 border-b border-slate-100 p-5">
+          <div>
+            <h2 className="text-base font-bold text-slate-900">Latest student records</h2>
+            <p className="mt-0.5 text-sm text-slate-500">The five most recently added students</p>
+          </div>
+          <Link href="/students" className="text-sm font-semibold text-blue-600 hover:underline">
+            View all
+          </Link>
+        </div>
+
+        {students.loading ? (
+          <LoadingState label="Loading students…" />
+        ) : students.error ? (
+          <ErrorState error={students.error} onRetry={students.reload} compact />
+        ) : recentStudents.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title="No students yet"
+            description="Student records will appear here once they are added."
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+                <tr>
+                  <th scope="col" className="px-5 py-3 font-semibold">Student</th>
+                  <th scope="col" className="px-5 py-3 font-semibold">Email</th>
+                  <th scope="col" className="px-5 py-3 font-semibold">Course</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {recentStudents.map((student) => (
+                  <tr key={student.id} className="hover:bg-slate-50">
+                    <td className="px-5 py-3.5 font-semibold text-slate-900">
+                      {student.firstName} {student.lastName}
+                    </td>
+                    <td className="px-5 py-3.5 text-slate-600">{student.email}</td>
+                    <td className="px-5 py-3.5">
+                      {student.course ? (
+                        <Badge tone="indigo">{student.course}</Badge>
+                      ) : (
+                        <span className="text-slate-400">Not assigned</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </AdminShell>
   );
 }

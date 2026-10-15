@@ -1,72 +1,97 @@
-
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  GraduationCap,
-  LayoutDashboard,
-  Users,
-  BookOpen,
-  LogOut,
-} from "lucide-react";
+import { GraduationCap, House } from "lucide-react";
 
-const menuItems = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Students", href: "/students", icon: Users },
-  { name: "Courses", href: "/courses", icon: BookOpen },
-];
+import { useAuthUser } from "@/components/auth/AuthProvider";
+import SignOutButton from "@/components/auth/SignOutButton";
+import { isActivePath, type PortalConfig } from "@/components/layout/portals";
 
-export default function Sidebar() {
+/** Portal navigation content, shared by the desktop rail and the mobile drawer. */
+export function SidebarContent({
+  portal,
+  onNavigate,
+}: {
+  portal: PortalConfig;
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
+  const user = useAuthUser();
 
   return (
-    <aside className="hidden min-h-screen w-64 shrink-0 border-r border-slate-200 bg-white md:flex md:flex-col">
-      <div className="flex h-20 items-center gap-3 border-b border-slate-100 px-6">
-        <div className="rounded-xl bg-blue-600 p-2 text-white">
-          <GraduationCap size={24} />
+    <div className="flex h-full flex-col px-4 py-6">
+      <Link
+        href={portal.homeHref}
+        onClick={onNavigate}
+        className="flex items-center gap-3 px-2"
+      >
+        <div className="rounded-xl bg-blue-600 p-2.5 text-white">
+          <GraduationCap size={22} aria-hidden />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-slate-900">
-            StudentMS
-          </h1>
-          <p className="text-xs text-slate-500">
-            Management Portal
-          </p>
+          <p className="text-lg font-bold text-white">StudentMS</p>
+          <p className="text-xs text-slate-400">{portal.label}</p>
         </div>
-      </div>
+      </Link>
 
-      <nav className="flex-1 space-y-2 px-4 py-6">
-        {menuItems.map((item) => {
+      <p className="mb-3 mt-10 px-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
+        {portal.navLabel}
+      </p>
+
+      <nav aria-label={portal.label} className="space-y-1">
+        {portal.navigation.map((item) => {
           const Icon = item.icon;
-          const active = pathname === item.href;
+          const active = isActivePath(pathname, item.href);
 
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition ${
+              onClick={onNavigate}
+              aria-current={active ? "page" : undefined}
+              className={`flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-blue-400 ${
                 active
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-slate-600 hover:bg-slate-100"
+                  ? "bg-blue-600 text-white shadow-sm shadow-blue-900/40"
+                  : "text-slate-300 hover:bg-slate-800 hover:text-white"
               }`}
             >
-              <Icon size={19} />
+              <Icon size={18} aria-hidden />
               {item.name}
             </Link>
           );
         })}
       </nav>
 
-      <div className="border-t border-slate-100 p-4">
+      <div className="mt-auto space-y-1">
+        {user && (
+          <div className="mb-2 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+            <p className="text-xs text-slate-500">Signed in as</p>
+            <p className="mt-0.5 truncate text-sm font-semibold text-white">{user.username}</p>
+            <p className="truncate text-xs text-slate-400">{user.email}</p>
+          </div>
+        )}
+        <SignOutButton
+          onSignedOut={onNavigate}
+          className="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm text-slate-300 transition hover:bg-slate-800 hover:text-white disabled:opacity-60"
+        />
         <Link
-          href="/login"
-          className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm text-slate-600 hover:bg-slate-100"
+          href="/"
+          onClick={onNavigate}
+          className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-white"
         >
-          <LogOut size={19} />
-          Login
+          <House size={18} aria-hidden />
+          Back to website
         </Link>
       </div>
+    </div>
+  );
+}
+
+export default function Sidebar({ portal }: { portal: PortalConfig }) {
+  return (
+    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 bg-slate-950 lg:block">
+      <SidebarContent portal={portal} />
     </aside>
   );
 }

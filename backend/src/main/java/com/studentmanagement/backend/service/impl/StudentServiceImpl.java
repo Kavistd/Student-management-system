@@ -7,9 +7,11 @@ import com.studentmanagement.backend.entity.Student;
 import com.studentmanagement.backend.exception.ResourceNotFoundException;
 import com.studentmanagement.backend.repository.StudentRepository;
 import com.studentmanagement.backend.service.StudentService;
+import com.studentmanagement.backend.util.EmailNormalizer;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Service
@@ -19,13 +21,19 @@ public class StudentServiceImpl implements StudentService {
     private final StudentRepository studentRepository;
 
     @Override
+    @Transactional
     public StudentResponse createStudent(StudentRequest request) {
+
+        String email = EmailNormalizer.normalize(request.getEmail());
+        if (studentRepository.existsByEmailIgnoreCase(email)) {
+            throw new IllegalArgumentException("Email already exists: " + email);
+        }
 
         Student student = new Student();
 
         student.setFirstName(request.getFirstName());
         student.setLastName(request.getLastName());
-        student.setEmail(request.getEmail());
+        student.setEmail(email);
         student.setPhone(request.getPhone());
         student.setCourse(request.getCourse());
 
@@ -41,7 +49,8 @@ public class StudentServiceImpl implements StudentService {
         );
     }
     @Override
-public List<StudentResponse> getAllStudents() {
+    @Transactional(readOnly = true)
+    public List<StudentResponse> getAllStudents() {
 
     return studentRepository.findAll()
             .stream()
@@ -55,8 +64,9 @@ public List<StudentResponse> getAllStudents() {
             ))
             .toList();
 }
-@Override
-public StudentResponse getStudentById(Long id) {
+    @Override
+    @Transactional(readOnly = true)
+    public StudentResponse getStudentById(Long id) {
 
     Student student = studentRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException(
@@ -72,8 +82,9 @@ public StudentResponse getStudentById(Long id) {
             student.getCourse()
     );
 }
-@Override
-public StudentResponse updateStudent(Long id, StudentRequest request) {
+    @Override
+    @Transactional
+    public StudentResponse updateStudent(Long id, StudentRequest request) {
 
     // Find the existing student
     Student student = studentRepository.findById(id)
@@ -82,19 +93,17 @@ public StudentResponse updateStudent(Long id, StudentRequest request) {
             ));
 
     // Check whether the new email belongs to another student
-    studentRepository.findByEmail(request.getEmail())
-            .ifPresent(existingStudent -> {
-                if (!existingStudent.getId().equals(id)) {
-                    throw new IllegalArgumentException(
-                            "Email already exists: " + request.getEmail()
-                    );
-                }
-            });
+    String email = EmailNormalizer.normalize(request.getEmail());
+    boolean takenByAnother = studentRepository.findAllByEmailIgnoreCase(email).stream()
+            .anyMatch(existingStudent -> !existingStudent.getId().equals(id));
+    if (takenByAnother) {
+        throw new IllegalArgumentException("Email already exists: " + email);
+    }
 
     // Update student information
     student.setFirstName(request.getFirstName());
     student.setLastName(request.getLastName());
-    student.setEmail(request.getEmail());
+    student.setEmail(email);
     student.setPhone(request.getPhone());
     student.setCourse(request.getCourse());
 
@@ -112,8 +121,9 @@ public StudentResponse updateStudent(Long id, StudentRequest request) {
     );
 }
 
-@Override
-public void deleteStudent(Long id) {
+    @Override
+    @Transactional
+    public void deleteStudent(Long id) {
 
     // Find the student by ID
     Student student = studentRepository.findById(id)
@@ -123,5 +133,25 @@ public void deleteStudent(Long id) {
 
     // Delete the student from database
     studentRepository.delete(student);
+}
+
+    @Override
+    @Transactional(readOnly = true)
+    public StudentResponse getStudentForUser(Long userId) {
+
+    // Resolved from the authenticated identity, never from a client-supplied ID
+    Student student = studentRepository.findByUser_Id(userId)
+            .orElseThrow(() -> new ResourceNotFoundException(
+                    "No student record is linked to this account"
+            ));
+
+    return new StudentResponse(
+            student.getId(),
+            student.getFirstName(),
+            student.getLastName(),
+            student.getEmail(),
+            student.getPhone(),
+            student.getCourse()
+    );
 }
 }

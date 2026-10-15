@@ -3,8 +3,11 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowRight,
+  AtSign,
+  LoaderCircle,
   Eye,
   EyeOff,
   GraduationCap,
@@ -16,14 +19,23 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+import { toApiError } from "@/lib/apiError";
+import { register } from "@/lib/auth";
+
 export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const router = useRouter();
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     if (password !== confirmPassword) {
@@ -32,7 +44,21 @@ export default function SignUpPage() {
     }
 
     setError("");
-    // Registration API will be integrated on Day 4.
+    setSubmitting(true);
+    try {
+      // Public registration always creates a STUDENT account; no role is sent.
+      await register({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        username: username.trim(),
+        email: email.trim(),
+        password,
+      });
+      router.push("/login?registered=1");
+    } catch (err) {
+      setError(toApiError(err).message);
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -104,18 +130,57 @@ export default function SignUpPage() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4 rounded-3xl border border-slate-200 bg-white p-7 shadow-xl shadow-slate-200/50 sm:p-9">
+          <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4 rounded-3xl border border-slate-200 bg-white p-7 shadow-xl shadow-slate-200/50 sm:p-9">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="firstName" className="mb-2 block text-sm font-semibold text-slate-700">
+                  First name
+                </label>
+                <div className="relative">
+                  <UserRound className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input
+                    id="firstName"
+                    required
+                    placeholder="First name"
+                    autoComplete="given-name"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                  />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="lastName" className="mb-2 block text-sm font-semibold text-slate-700">
+                  Last name
+                </label>
+                <div className="relative">
+                  <UserRound className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input
+                    id="lastName"
+                    required
+                    placeholder="Last name"
+                    autoComplete="family-name"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                  />
+                </div>
+              </div>
+            </div>
+
             <div>
-              <label htmlFor="name" className="mb-2 block text-sm font-semibold text-slate-700">
-                Full name
+              <label htmlFor="username" className="mb-2 block text-sm font-semibold text-slate-700">
+                Username
               </label>
               <div className="relative">
-                <UserRound className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input
-                  id="name"
+                  id="username"
                   required
-                  placeholder="Enter your full name"
-                  autoComplete="name"
+                  placeholder="Choose a username"
+                  autoComplete="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 />
               </div>
@@ -133,6 +198,8 @@ export default function SignUpPage() {
                   required
                   placeholder="you@example.com"
                   autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 />
               </div>
@@ -202,14 +269,22 @@ export default function SignUpPage() {
 
             <button
               type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3.5 font-semibold text-white transition hover:bg-blue-700"
+              disabled={submitting}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3.5 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Create Account <ArrowRight size={19} />
+              {submitting ? (
+                <>
+                  <LoaderCircle size={19} className="animate-spin" aria-hidden /> Creating account…
+                </>
+              ) : (
+                <>
+                  Create Account <ArrowRight size={19} />
+                </>
+              )}
             </button>
 
             <p className="text-center text-xs text-slate-400">
-              Registration API integration is scheduled for Day 4.
-              Submitting this form will not create an account yet.
+              New accounts are student accounts. Administrators are set up separately.
             </p>
 
             <p className="text-center text-sm text-slate-600">

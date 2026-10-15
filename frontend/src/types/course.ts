@@ -6,3 +6,11 @@ export interface Course {
   description: string | null;
   durationMonths: number | null;
 }
+
+/** Request body for POST/PUT /api/courses (CourseRequest). */
+export interface CoursePayload {
+  courseCode: string;
+  courseName: string;
+  description: string | null;
+  durationMonths: number | null;
+}

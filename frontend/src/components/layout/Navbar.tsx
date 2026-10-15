@@ -1,94 +1,101 @@
-
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import {
-  BookOpen,
-  GraduationCap,
-  LayoutDashboard,
-  LogIn,
-  Menu,
-  X,
-  Users,
-} from "lucide-react";
+import { Menu, X } from "lucide-react";
 
-const links = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Students", href: "/students", icon: Users },
-  { name: "Courses", href: "/courses", icon: BookOpen },
-];
+import { useAuthUser } from "@/components/auth/AuthProvider";
+import Badge from "@/components/ui/Badge";
+import { SidebarContent } from "@/components/layout/Sidebar";
+import { isActivePath, type PortalConfig } from "@/components/layout/portals";
 
-export default function Navbar() {
+export default function Navbar({ portal }: { portal: PortalConfig }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
+  const user = useAuthUser();
+  const current = portal.navigation.find((item) => isActivePath(pathname, item.href));
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [menuOpen]);
 
   return (
     <>
-      <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-5 md:px-8">
-        <div>
-          <p className="text-sm font-semibold text-slate-900">
-            Student Management System
-          </p>
-          <p className="text-xs text-slate-500">
-            Admin Dashboard
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <span className="hidden text-sm text-slate-500 sm:block">
-            Management Portal
-          </span>
-
-          <div className="rounded-full bg-blue-100 p-2 text-blue-700">
-            <GraduationCap size={20} />
-          </div>
-
+      <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-slate-200 bg-white/90 px-4 backdrop-blur sm:px-6 lg:px-8">
+        <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="rounded-lg p-2 text-slate-700 hover:bg-slate-100 md:hidden"
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            onClick={() => setMenuOpen(true)}
+            className="rounded-lg p-2 text-slate-700 hover:bg-slate-100 lg:hidden"
+            aria-label="Open navigation menu"
             aria-expanded={menuOpen}
+            aria-controls="portal-mobile-nav"
           >
-            {menuOpen ? <X size={22} /> : <Menu size={22} />}
+            <Menu size={22} aria-hidden />
           </button>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-slate-900">
+              {current?.name ?? portal.label}
+            </p>
+            <p className="hidden text-xs text-slate-500 sm:block">
+              Student Management System
+            </p>
+          </div>
         </div>
+
+        {user && (
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="hidden min-w-0 text-right sm:block">
+              <p className="truncate text-sm font-semibold text-slate-900">{user.username}</p>
+              <p className="truncate text-xs text-slate-500">{user.email}</p>
+            </div>
+            <div
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700"
+              aria-hidden
+            >
+              {user.username.charAt(0).toUpperCase()}
+            </div>
+            <Badge tone={user.role === "ADMIN" ? "amber" : "emerald"}>
+              {user.role === "ADMIN" ? "Admin" : "Student"}
+            </Badge>
+          </div>
+        )}
       </header>
 
       {menuOpen && (
-        <nav className="border-b border-slate-200 bg-white p-4 md:hidden">
-          {links.map((item) => {
-            const Icon = item.icon;
-            const active = pathname === item.href;
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMenuOpen(false)}
-                className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm ${
-                  active
-                    ? "bg-blue-50 font-semibold text-blue-700"
-                    : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                <Icon size={18} />
-                {item.name}
-              </Link>
-            );
-          })}
-
-          <Link
-            href="/login"
+        <div className="fixed inset-0 z-40 lg:hidden" id="portal-mobile-nav">
+          <div
+            className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm"
             onClick={() => setMenuOpen(false)}
-            className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm text-slate-600 hover:bg-slate-100"
+            aria-hidden
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation menu"
+            className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-slate-950 shadow-2xl"
           >
-            <LogIn size={18} />
-            Login
-          </Link>
-        </nav>
+            <button
+              type="button"
+              onClick={() => setMenuOpen(false)}
+              className="absolute right-3 top-3 rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white"
+              aria-label="Close navigation menu"
+              autoFocus
+            >
+              <X size={20} aria-hidden />
+            </button>
+            <SidebarContent portal={portal} onNavigate={() => setMenuOpen(false)} />
+          </div>
+        </div>
       )}
     </>
   );

@@ -8,6 +8,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -36,6 +38,16 @@ public class StudentController {
 
     return ResponseEntity.ok(studentService.getAllStudents());
     }
+
+    // The signed-in student's own record, identified by the JWT subject (user ID)
+    @GetMapping("/me")
+    public ResponseEntity<StudentResponse> getCurrentStudent(
+            @AuthenticationPrincipal Jwt jwt) {
+
+        return ResponseEntity.ok(
+                studentService.getStudentForUser(Long.valueOf(jwt.getSubject())));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<StudentResponse> getStudentById(@PathVariable Long id) {
         StudentResponse response = studentService.getStudentById(id);

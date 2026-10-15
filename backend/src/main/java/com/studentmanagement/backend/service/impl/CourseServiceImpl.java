@@ -9,6 +9,7 @@ import com.studentmanagement.backend.service.CourseService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -19,6 +20,7 @@ public class CourseServiceImpl implements CourseService {
     private final CourseRepository courseRepository;
 
     @Override
+    @Transactional
     public CourseResponse createCourse(CourseRequest request) {
 
         if (courseRepository.existsByCourseCode(request.getCourseCode())) {
@@ -39,6 +41,7 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<CourseResponse> getAllCourses() {
 
         return courseRepository.findAll()
@@ -48,6 +51,7 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public CourseResponse getCourseById(Long id) {
 
         Course course = courseRepository.findById(id)
@@ -59,6 +63,7 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
+    @Transactional
     public CourseResponse updateCourse(Long id, CourseRequest request) {
 
         Course course = courseRepository.findById(id)
@@ -86,6 +91,7 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
+    @Transactional
     public void deleteCourse(Long id) {
 
         Course course = courseRepository.findById(id)
