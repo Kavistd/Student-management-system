@@ -3,6 +3,9 @@ package com.studentmanagement.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.FetchType;
 
 @Entity
 @Table(name = "students")
@@ -28,4 +31,8 @@ public class Student {
     private String phone;
 
     private String course;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", unique = true)
+    private User user;
 }
