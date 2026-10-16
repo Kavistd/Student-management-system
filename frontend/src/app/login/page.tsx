@@ -29,7 +29,7 @@ function RegisteredNotice() {
   const registered = useSearchParams().get("registered") === "1";
   if (!registered) return null;
   return (
-    <p role="status" className="mb-6 flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">
+    <p role="status" className="mb-5 flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">
       <CheckCircle2 size={17} aria-hidden />
       Account created. Sign in with your new email and password.
     </p>
@@ -133,17 +133,17 @@ export default function LoginPage() {
         </p>
       </section>
 
-      <section className="flex min-h-screen items-center justify-center px-5 py-12 sm:px-10">
+      <section className="flex min-h-screen items-center justify-center px-5 py-6 sm:px-10">
         <div className="w-full max-w-md">
-          <div className="mb-10 flex items-center gap-3 lg:hidden">
+          <div className="mb-6 flex items-center gap-3 lg:hidden">
             <div className="rounded-xl bg-blue-600 p-3 text-white">
               <GraduationCap size={25} />
             </div>
             <span className="text-xl font-bold text-slate-900">StudentMS</span>
           </div>
 
-          <div className="mb-9">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700">
+          <div className="mb-6">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700">
               <CheckCircle2 size={16} />
               Welcome to StudentMS
             </div>
@@ -151,19 +151,19 @@ export default function LoginPage() {
             <h2 className="text-4xl font-bold tracking-tight text-slate-900">
               Welcome back
             </h2>
-            <p className="mt-3 text-slate-500">
+            <p className="mt-2 text-slate-500">
               Sign in to continue to your management dashboard.
             </p>
           </div>
 
           <form
             onSubmit={(event) => void handleSubmit(event)}
-            className="rounded-3xl border border-slate-200 bg-white p-7 shadow-xl shadow-slate-200/50 sm:p-9"
+            className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/50 sm:p-8"
           >
             <Suspense fallback={null}>
               <RegisteredNotice />
             </Suspense>
-            <div className="mb-6">
+            <div className="mb-5">
               <label htmlFor="email" className="mb-2 block text-sm font-semibold text-slate-700">
                 Email address
               </label>
@@ -177,7 +177,7 @@ export default function LoginPage() {
                   placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3.5 pl-12 pr-4 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-12 pr-4 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 />
               </div>
             </div>
@@ -196,7 +196,7 @@ export default function LoginPage() {
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3.5 pl-12 pr-12 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-12 pr-12 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 />
                 <button
                   type="button"
@@ -209,7 +209,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="mb-7 flex items-center justify-between gap-3 text-sm">
+            <div className="mb-5 flex items-center justify-between gap-3 text-sm">
               <label className="flex items-center gap-2 text-slate-600">
                 <input
                   type="checkbox"
@@ -232,7 +232,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3.5 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting ? (
                 <>
@@ -249,7 +249,7 @@ export default function LoginPage() {
               Remember me keeps you signed in for up to 7 days on this device.
             </p>
 
-            <div className="my-7 flex items-center gap-3">
+            <div className="my-5 flex items-center gap-3">
               <div className="h-px flex-1 bg-slate-200" />
               <span className="text-xs text-slate-400">New to StudentMS?</span>
               <div className="h-px flex-1 bg-slate-200" />
@@ -257,13 +257,13 @@ export default function LoginPage() {
 
             <Link
               href="/signup"
-              className="flex w-full items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-5 py-3.5 font-semibold text-blue-700 transition hover:bg-blue-100"
+              className="flex w-full items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-5 py-3 font-semibold text-blue-700 transition hover:bg-blue-100"
             >
               Create an Account
             </Link>
           </form>
 
-          <div className="mt-8 text-center">
+          <div className="mt-5 text-center">
             <Link href="/" className="text-sm font-medium text-slate-500 hover:text-blue-600">
               ← Back to Home
             </Link>

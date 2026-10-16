@@ -19,14 +19,20 @@ export interface ApiError {
 
 /**
  * Pulls a human-readable message out of the backend's error bodies.
- * GlobalExceptionHandler returns plain strings; Spring's default error
- * handling returns JSON with `message`, `detail`, or `errors`.
+ * Supports the API's code/message/field-errors objects and legacy error bodies.
  */
 function extractMessage(data: unknown): string | null {
   if (typeof data === "string" && data.trim()) return data.trim();
 
   if (data && typeof data === "object") {
     const body = data as Record<string, unknown>;
+
+    if (body.errors && typeof body.errors === "object" && !Array.isArray(body.errors)) {
+      const messages = Object.values(body.errors).filter(
+        (value): value is string => typeof value === "string" && value.trim().length > 0
+      );
+      if (messages.length) return messages.join(" ");
+    }
 
     if (Array.isArray(body.errors) && body.errors.length > 0) {
       const messages = body.errors
@@ -62,7 +68,8 @@ export function toApiError(err: unknown): ApiError {
   }
 
   const status = err.response.status;
-  const message = extractMessage(err.response.data);
+  const data: unknown = err.response.data;
+  const message = extractMessage(data);
 
   if (status === 401) {
     return {
@@ -117,11 +124,11 @@ export function toApiError(err: unknown): ApiError {
   }
 
   return {
-    kind: "server",
+    kind: status >= 500 ? "server" : "unknown",
     status,
     message:
       status >= 500
-        ? "The server could not complete the request. The record may conflict with existing data (for example, a duplicate email)."
+        ? "The server could not complete the request. Please try again later."
         : message ?? `Request failed with status ${status}.`,
   };
 }

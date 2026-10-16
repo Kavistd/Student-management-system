@@ -4,6 +4,7 @@ import com.studentmanagement.backend.dto.request.CourseRequest;
 import com.studentmanagement.backend.dto.response.CourseResponse;
 import com.studentmanagement.backend.entity.Course;
 import com.studentmanagement.backend.exception.ResourceNotFoundException;
+import com.studentmanagement.backend.exception.DuplicateRecordException;
 import com.studentmanagement.backend.repository.CourseRepository;
 import com.studentmanagement.backend.service.CourseService;
 
@@ -24,7 +25,7 @@ public class CourseServiceImpl implements CourseService {
     public CourseResponse createCourse(CourseRequest request) {
 
         if (courseRepository.existsByCourseCode(request.getCourseCode())) {
-            throw new IllegalArgumentException(
+            throw new DuplicateRecordException(
                     "Course code already exists: " + request.getCourseCode()
             );
         }
@@ -74,7 +75,7 @@ public class CourseServiceImpl implements CourseService {
         courseRepository.findByCourseCode(request.getCourseCode())
                 .ifPresent(existingCourse -> {
                     if (!existingCourse.getId().equals(id)) {
-                        throw new IllegalArgumentException(
+                        throw new DuplicateRecordException(
                                 "Course code already exists: " + request.getCourseCode()
                         );
                     }

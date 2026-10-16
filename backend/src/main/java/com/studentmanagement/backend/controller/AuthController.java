@@ -1,5 +1,6 @@
 package com.studentmanagement.backend.controller;
 
+import com.studentmanagement.backend.dto.request.ChangePasswordRequest;
 import com.studentmanagement.backend.dto.request.LoginRequest;
 import com.studentmanagement.backend.dto.request.RegisterRequest;
 import com.studentmanagement.backend.dto.response.AuthUserResponse;
@@ -96,9 +97,13 @@ public class AuthController {
             writeSession(httpResponse, session);
             return ResponseEntity.ok(session.user());
         } catch (InvalidRefreshTokenException ex) {
-            if (!ex.isConcurrentRotation()) {
-                authCookies.clearSessionCookies(httpResponse);
+            if (ex.isConcurrentRotation()) {
+                // The winning response may still be in flight. Do not clear its shared cookies.
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                        "code", "REFRESH_RACE",
+                        "message", "Another request refreshed your session. Please retry shortly."));
             }
+            authCookies.clearSessionCookies(httpResponse);
             return sessionExpired();
         }
     }
@@ -111,6 +116,23 @@ public class AuthController {
         authCookies.readRefreshToken(httpRequest).ifPresent(authService::logout);
         authCookies.clearSessionCookies(httpResponse);
         rotateCsrfToken(httpRequest, httpResponse);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Changes the signed-in student's password; all other sessions are signed out. */
+    @PostMapping("/password")
+    public ResponseEntity<Void> changePassword(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody ChangePasswordRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse
+    ) {
+        AuthService.Session session = authService.changePassword(
+                Long.valueOf(jwt.getSubject()),
+                request,
+                clientAddresses.resolve(httpRequest),
+                authCookies.readRefreshToken(httpRequest).orElse(null));
+        writeSession(httpResponse, session);
         return ResponseEntity.noContent().build();
     }
 

@@ -1,6 +1,8 @@
 package com.studentmanagement.backend.config;
 
 import com.studentmanagement.backend.security.AuthCookieService;
+import com.studentmanagement.backend.repository.UserRepository;
+import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException;
 import com.studentmanagement.backend.security.CookieBearerTokenResolver;
 import com.studentmanagement.backend.security.JsonSecurityErrorHandler;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
@@ -50,7 +52,8 @@ public class SecurityConfig {
             JwtDecoder jwtDecoder,
             AuthCookieService authCookies,
             JsonSecurityErrorHandler securityErrors,
-            CookieCsrfTokenRepository csrfTokens
+            CookieCsrfTokenRepository csrfTokens,
+            UserRepository users
     ) throws Exception {
 
         http
@@ -70,7 +73,7 @@ public class SecurityConfig {
                 .authenticationEntryPoint(securityErrors)
                 .accessDeniedHandler(securityErrors))
             .addFilterBefore(
-                jwtCookieFilter(jwtDecoder, authCookies, securityErrors),
+                jwtCookieFilter(jwtDecoder, authCookies, securityErrors, users),
                 AnonymousAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
                 // Lets error responses for already-authorized requests render.
@@ -84,8 +87,13 @@ public class SecurityConfig {
                     "/api/auth/logout"
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/auth/password").hasRole("STUDENT")
 
+                // Student accounts and profiles are created only by public registration.
+                .requestMatchers(HttpMethod.POST, "/api/students", "/api/students/**",
+                    "/api/users", "/api/users/**").denyAll()
                 .requestMatchers(HttpMethod.GET, "/api/students/me").hasRole("STUDENT")
+                .requestMatchers(HttpMethod.PUT, "/api/students/me").hasRole("STUDENT")
 
                 .requestMatchers(HttpMethod.GET, "/api/courses", "/api/courses/{id}")
                     .hasAnyRole("ADMIN", "STUDENT")
@@ -102,7 +110,7 @@ public class SecurityConfig {
     private static BearerTokenAuthenticationFilter jwtCookieFilter(
             JwtDecoder jwtDecoder,
             AuthCookieService authCookies,
-            JsonSecurityErrorHandler securityErrors) {
+            JsonSecurityErrorHandler securityErrors, UserRepository users) {
 
         // "role": "ADMIN" -> authority ROLE_ADMIN, matched by hasRole("ADMIN").
         JwtGrantedAuthoritiesConverter authorities = new JwtGrantedAuthoritiesConverter();
@@ -113,7 +121,17 @@ public class SecurityConfig {
         converter.setJwtGrantedAuthoritiesConverter(authorities);
 
         JwtAuthenticationProvider provider = new JwtAuthenticationProvider(jwtDecoder);
-        provider.setJwtAuthenticationConverter(converter);
+        provider.setJwtAuthenticationConverter(jwt -> {
+            // Runs only after signature, issuer and lifetime validation; never use request IDs.
+            Long userId;
+            try {
+                userId = Long.valueOf(jwt.getSubject());
+            } catch (NumberFormatException ex) {
+                throw new InvalidBearerTokenException("Invalid access token.");
+            }
+            if (!users.existsById(userId)) throw new InvalidBearerTokenException("Account is no longer available.");
+            return converter.convert(jwt);
+        });
 
         BearerTokenAuthenticationFilter filter =
                 new BearerTokenAuthenticationFilter(new ProviderManager(provider));

@@ -1,21 +1,21 @@
 package com.studentmanagement.backend.exception;
 
-/**
- * A refresh token that is unknown, expired, or revoked.
- * {@code concurrentRotation} marks the benign case where another tab rotated
- * the token moments ago; the caller must then leave the (already updated)
- * cookies alone instead of clearing them.
- */
+/** Internal reasons distinguish retryable rotation from terminal refresh failures. */
 public class InvalidRefreshTokenException extends RuntimeException {
+    public enum Reason { INVALID, EXPIRED, REVOKED, REPLAYED, CONCURRENT_ROTATION }
 
-    private final boolean concurrentRotation;
+    private final Reason reason;
 
-    public InvalidRefreshTokenException(boolean concurrentRotation) {
+    public InvalidRefreshTokenException(Reason reason) {
         super("Refresh token is invalid");
-        this.concurrentRotation = concurrentRotation;
+        this.reason = reason;
+    }
+
+    public Reason getReason() {
+        return reason;
     }
 
     public boolean isConcurrentRotation() {
-        return concurrentRotation;
+        return reason == Reason.CONCURRENT_ROTATION;
     }
 }

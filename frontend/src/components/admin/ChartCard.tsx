@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { ChartNoAxesColumn } from "lucide-react";
 
 import CountBarChart, { type CountDatum } from "@/components/admin/CountBarChart";
@@ -13,7 +12,6 @@ export default function ChartCard({
   data,
   valueLabel,
   emptyMessage,
-  footnote,
 }: {
   title: string;
   description: string;
@@ -22,7 +20,6 @@ export default function ChartCard({
   data: CountDatum[];
   valueLabel: string;
   emptyMessage: string;
-  footnote?: ReactNode;
 }) {
   return (
     <section className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -40,10 +37,6 @@ export default function ChartCard({
           <CountBarChart data={data} valueLabel={valueLabel} />
         )}
       </div>
-
-      {footnote && !loading && !error && data.length > 0 && (
-        <p className="mt-3 text-xs text-slate-400">{footnote}</p>
-      )}
     </section>
   );
 }

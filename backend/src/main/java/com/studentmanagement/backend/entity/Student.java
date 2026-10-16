@@ -3,9 +3,6 @@ package com.studentmanagement.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import jakarta.persistence.OneToOne;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.FetchType;
 
 @Entity
 @Table(name = "students")

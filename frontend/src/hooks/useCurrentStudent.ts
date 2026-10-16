@@ -15,7 +15,7 @@ export type CurrentStudentState =
   | { status: "signedOut" }
   | { status: "loading" }
   | { status: "error"; error: ApiError; retry: () => void }
-  | { status: "ready"; student: Student };
+  | { status: "ready"; student: Student; setStudent: (student: Student) => void };
 
 export function useCurrentStudent(): CurrentStudentState {
   const resource = useApiResource<Student>(CURRENT_STUDENT_ENDPOINT);
@@ -26,6 +26,8 @@ export function useCurrentStudent(): CurrentStudentState {
       ? { status: "signedOut" }
       : { status: "error", error: resource.error, retry: resource.reload };
   }
-  if (resource.data) return { status: "ready", student: resource.data };
+  if (resource.data) {
+    return { status: "ready", student: resource.data, setStudent: (student) => resource.setData(() => student) };
+  }
   return { status: "loading" };
 }

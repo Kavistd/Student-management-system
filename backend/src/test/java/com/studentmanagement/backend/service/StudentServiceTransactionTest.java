@@ -26,13 +26,16 @@ class StudentServiceTransactionTest {
     @Mock
     private StudentRepository studentRepository;
 
+    @Mock
+    private com.studentmanagement.backend.service.AccountDeletionService accountDeletion;
+
     private StudentServiceImpl studentService;
 
     private StudentRequest request;
 
     @BeforeEach
     void setUp() {
-        studentService = new StudentServiceImpl(studentRepository);
+        studentService = new StudentServiceImpl(studentRepository, accountDeletion);
         request = new StudentRequest();
         request.setFirstName("Jane");
         request.setLastName("Doe");
@@ -44,10 +47,9 @@ class StudentServiceTransactionTest {
     // --- @Transactional annotation presence ---
 
     @Test
-    void createStudent_isAnnotatedTransactional() throws NoSuchMethodException {
-        Method m = StudentServiceImpl.class.getMethod("createStudent", StudentRequest.class);
-        assertThat(m.isAnnotationPresent(Transactional.class)).isTrue();
-        assertThat(m.getAnnotation(Transactional.class).readOnly()).isFalse();
+    void manualStudentCreationIsNotExposed() {
+        assertThat(java.util.Arrays.stream(StudentServiceImpl.class.getMethods()).map(Method::getName))
+                .doesNotContain("createStudent");
     }
 
     @Test
@@ -88,10 +90,13 @@ class StudentServiceTransactionTest {
     // --- Rollback-triggering exceptions ---
 
     @Test
-    void createStudent_duplicateEmail_throwsIllegalArgument_noSave() {
-        when(studentRepository.existsByEmailIgnoreCase(anyString())).thenReturn(true);
+    void updateStudent_duplicateEmail_throwsIllegalArgument_noSave() {
+        var existing = new com.studentmanagement.backend.entity.Student(); existing.setId(1L);
+        var other = new com.studentmanagement.backend.entity.Student(); other.setId(2L);
+        when(studentRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(studentRepository.findAllByEmailIgnoreCase(anyString())).thenReturn(java.util.List.of(other));
 
-        assertThatThrownBy(() -> studentService.createStudent(request))
+        assertThatThrownBy(() -> studentService.updateStudent(1L, request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Email already exists");
 
@@ -110,7 +115,7 @@ class StudentServiceTransactionTest {
 
     @Test
     void deleteStudent_notFound_throwsResourceNotFound_noDelete() {
-        when(studentRepository.findById(99L)).thenReturn(Optional.empty());
+        doThrow(new ResourceNotFoundException("Student not found")).when(accountDeletion).deleteStudent(99L);
 
         assertThatThrownBy(() -> studentService.deleteStudent(99L))
                 .isInstanceOf(ResourceNotFoundException.class);

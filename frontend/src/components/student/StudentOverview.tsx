@@ -5,7 +5,6 @@ import {
   ArrowRight,
   BookOpen,
   LockKeyhole,
-  Settings,
   ShieldCheck,
   UserRound,
 } from "lucide-react";
@@ -20,7 +19,7 @@ import { useCurrentStudent } from "@/hooks/useCurrentStudent";
 const shortcuts = [
   {
     label: "My Profile",
-    description: "Your personal and contact details",
+    description: "Your details and account settings",
     href: "/student/profile",
     icon: UserRound,
   },
@@ -29,12 +28,6 @@ const shortcuts = [
     description: "Your enrolled course and the course catalog",
     href: "/student/courses",
     icon: BookOpen,
-  },
-  {
-    label: "Account Settings",
-    description: "Sign-in and security options",
-    href: "/student/settings",
-    icon: Settings,
   },
 ];
 

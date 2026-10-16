@@ -9,10 +9,12 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import FeedbackBanner, { type Feedback } from "@/components/ui/FeedbackBanner";
+import Pagination from "@/components/ui/Pagination";
 import RowActions from "@/components/ui/RowActions";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/StatePanel";
 import { DataPanel, SearchInput } from "@/components/ui/Toolbar";
 import { useApiResource } from "@/hooks/useApiResource";
+import { usePagination } from "@/hooks/usePagination";
 import api from "@/lib/api";
 import { toApiError } from "@/lib/apiError";
 import type { Course } from "@/types/course";
@@ -47,6 +49,8 @@ export default function CourseDirectory() {
         .some((value) => String(value).toLowerCase().includes(query))
     );
   }, [list, search]);
+
+  const paged = usePagination(filtered);
 
   function openCreate() {
     setEditing(null);
@@ -122,13 +126,29 @@ export default function CourseDirectory() {
         filters={
           <SearchInput
             value={search}
-            onChange={setSearch}
+            onChange={(value) => {
+              setSearch(value);
+              paged.setPage(1);
+            }}
             label="Search courses"
             placeholder="Search courses…"
             disabled={!canManage}
           />
         }
-        footer={canManage && list.length > 0 ? `Showing ${filtered.length} of ${list.length} courses` : undefined}
+        footer={
+          canManage && list.length > 0 ? (
+            <Pagination
+              page={paged.page}
+              pageCount={paged.pageCount}
+              firstItem={paged.firstItem}
+              lastItem={paged.lastItem}
+              total={paged.total}
+              unfilteredTotal={list.length}
+              noun="courses"
+              onPageChange={paged.setPage}
+            />
+          ) : undefined
+        }
       >
         {courses.loading ? (
           <LoadingState label="Loading courses…" />
@@ -152,7 +172,13 @@ export default function CourseDirectory() {
             title="No matching courses"
             description="Try searching with a different course name or code."
             action={
-              <Button variant="secondary" onClick={() => setSearch("")}>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setSearch("");
+                  paged.setPage(1);
+                }}
+              >
                 Clear search
               </Button>
             }
@@ -160,7 +186,7 @@ export default function CourseDirectory() {
         ) : (
           <>
             <ul className="divide-y divide-slate-100 md:hidden">
-              {filtered.map((course) => (
+              {paged.pageItems.map((course) => (
                 <li key={course.id} className="flex items-start gap-3 p-4">
                   <div className="min-w-0 flex-1">
                     <Badge tone="blue">{course.courseCode}</Badge>
@@ -195,7 +221,7 @@ export default function CourseDirectory() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filtered.map((course) => (
+                  {paged.pageItems.map((course) => (
                     <tr key={course.id} className="align-top transition hover:bg-slate-50">
                       <td className="px-5 py-4">
                         <Badge tone="blue">{course.courseCode}</Badge>

@@ -15,13 +15,13 @@ type FormErrors = Partial<Record<keyof StudentPayload, string>>;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function toFormValues(student: Student | null): FormValues {
+function toFormValues(student: Student): FormValues {
   return {
-    firstName: student?.firstName ?? "",
-    lastName: student?.lastName ?? "",
-    email: student?.email ?? "",
-    phone: student?.phone ?? "",
-    course: student?.course ?? "",
+    firstName: student.firstName ?? "",
+    lastName: student.lastName ?? "",
+    email: student.email ?? "",
+    phone: student.phone ?? "",
+    course: student.course ?? "",
   };
 }
 
@@ -55,7 +55,7 @@ function StudentForm({
   onCancel,
   onSaved,
 }: {
-  student: Student | null;
+  student: Student;
   courseSuggestions: string[];
   onCancel: () => void;
   onSaved: (student: Student) => void;
@@ -81,9 +81,7 @@ function StudentForm({
     setSubmitError(null);
     try {
       const payload = toPayload(values);
-      const response = student
-        ? await api.put<Student>(`/api/students/${student.id}`, payload)
-        : await api.post<Student>("/api/students", payload);
+      const response = await api.put<Student>(`/api/students/${student.id}`, payload);
       onSaved(response.data);
     } catch (err) {
       setSubmitError(toApiError(err).message);
@@ -119,6 +117,8 @@ function StudentForm({
         autoComplete="off"
         value={values.email}
         onChange={update("email")}
+        readOnly={student.linkedAccount}
+        hint={student.linkedAccount ? "Linked account email is read-only." : "Contact email for this unlinked legacy record."}
         error={errors.email}
       />
       <TextField
@@ -161,7 +161,7 @@ function StudentForm({
         </Button>
         <Button type="submit" disabled={saving}>
           {saving && <LoaderCircle size={16} className="animate-spin" aria-hidden />}
-          {student ? "Save changes" : "Add student"}
+          Save changes
         </Button>
       </div>
     </form>
@@ -169,35 +169,29 @@ function StudentForm({
 }
 
 export default function StudentFormDialog({
-  open,
   student,
   courseSuggestions,
   onClose,
   onSaved,
 }: {
-  open: boolean;
-  student: Student | null;
+  student: Student;
   courseSuggestions: string[];
   onClose: () => void;
-  onSaved: (student: Student, created: boolean) => void;
+  onSaved: (student: Student) => void;
 }) {
   return (
     <Dialog
-      open={open}
-      title={student ? "Edit student" : "Add student"}
-      description={
-        student
-          ? `Update the record for ${student.firstName} ${student.lastName}.`
-          : "Create a new student record."
-      }
+      open
+      title="Edit student"
+      description={`Update the record for ${student.firstName} ${student.lastName}.`}
       onClose={onClose}
     >
       <StudentForm
-        key={student?.id ?? "new"}
+        key={student.id}
         student={student}
         courseSuggestions={courseSuggestions}
         onCancel={onClose}
-        onSaved={(saved) => onSaved(saved, !student)}
+        onSaved={onSaved}
       />
     </Dialog>
   );

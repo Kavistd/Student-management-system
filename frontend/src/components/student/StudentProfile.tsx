@@ -1,10 +1,13 @@
 "use client";
 
-import { BookOpen, Hash, Info, Mail, Phone, UserRound } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { BookOpen, Hash, Mail, Phone, Settings, UserRound } from "lucide-react";
 
 import StudentShell from "@/components/layout/StudentShell";
+import AccountSettingsPanel from "@/components/student/AccountSettingsPanel";
 import CurrentStudentGate from "@/components/student/CurrentStudentGate";
 import Badge from "@/components/ui/Badge";
+import Button from "@/components/ui/Button";
 import { useCurrentStudent } from "@/hooks/useCurrentStudent";
 import type { Student } from "@/types/student";
 
@@ -65,14 +68,36 @@ function ProfileDetails({ student }: { student: Student }) {
   );
 }
 
+const SETTINGS_ID = "account-settings";
+
 export default function StudentProfile() {
   const current = useCurrentStudent();
+  const [showSettings, setShowSettings] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
+
+  // Bring the panel into view when it is opened from the header button.
+  useEffect(() => {
+    if (showSettings) {
+      settingsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [showSettings]);
 
   return (
     <StudentShell
       eyebrow="My workspace"
       title="My profile"
       description="The personal details on your student record."
+      actions={
+        <Button
+          variant={showSettings ? "primary" : "secondary"}
+          onClick={() => setShowSettings((open) => !open)}
+          aria-expanded={showSettings}
+          aria-controls={SETTINGS_ID}
+        >
+          <Settings size={16} aria-hidden />
+          Account Settings
+        </Button>
+      }
     >
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center gap-3 border-b border-slate-100 p-5">
@@ -89,13 +114,15 @@ export default function StudentProfile() {
         </CurrentStudentGate>
       </section>
 
-      <div className="flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
-        <Info size={18} className="mt-0.5 shrink-0" aria-hidden />
-        <p>
-          Your profile is read-only. If any details are wrong, contact your administrator to
-          have them corrected.
-        </p>
-      </div>
+      {showSettings && current.status === "ready" && (
+        <div ref={settingsRef}>
+          <AccountSettingsPanel
+            id={SETTINGS_ID}
+            student={current.student}
+            onStudentUpdated={current.setStudent}
+          />
+        </div>
+      )}
     </StudentShell>
   );
 }

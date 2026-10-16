@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { GraduationCap, House } from "lucide-react";
+import { GraduationCap } from "lucide-react";
 
 import { useAuthUser } from "@/components/auth/AuthProvider";
 import SignOutButton from "@/components/auth/SignOutButton";
@@ -75,14 +75,6 @@ export function SidebarContent({
           onSignedOut={onNavigate}
           className="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm text-slate-300 transition hover:bg-slate-800 hover:text-white disabled:opacity-60"
         />
-        <Link
-          href="/"
-          onClick={onNavigate}
-          className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-white"
-        >
-          <House size={18} aria-hidden />
-          Back to website
-        </Link>
       </div>
     </div>
   );

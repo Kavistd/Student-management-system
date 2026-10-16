@@ -24,6 +24,8 @@ const nextConfig: NextConfig = {
       { source: "/dashboard", destination: "/admin/dashboard", permanent: false },
       // Guard against the singular form of the course catalog route.
       { source: "/course", destination: "/courses", permanent: false },
+      // Account settings now live in My Profile; keep old links and bookmarks working.
+      { source: "/student/settings", destination: "/student/profile", permanent: false },
     ];
   },
   async rewrites() {

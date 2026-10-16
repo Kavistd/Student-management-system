@@ -16,6 +16,8 @@ export interface RegisterPayload {
   lastName: string;
   username: string;
   email: string;
+  /** Contact number, stored on the student record's phone column. */
+  phone: string;
   password: string;
 }
 
@@ -30,6 +32,14 @@ export async function signOut() {
 
 export async function register(payload: RegisterPayload) {
   await api.post("/api/auth/register", payload);
+}
+
+/**
+ * Changes the signed-in student's password. The backend signs out every other
+ * session and sets fresh session cookies for this one.
+ */
+export async function changePassword(currentPassword: string, newPassword: string) {
+  await api.post("/api/auth/password", { currentPassword, newPassword });
 }
 
 /** Returns the signed-in user, or null when there is no valid session. */

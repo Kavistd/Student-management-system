@@ -13,6 +13,7 @@ import {
   GraduationCap,
   LockKeyhole,
   Mail,
+  Phone,
   UserRound,
   Users,
   BookOpen,
@@ -21,6 +22,7 @@ import {
 
 import { toApiError } from "@/lib/apiError";
 import { register } from "@/lib/auth";
+import { PHONE_HINT, PHONE_PATTERN } from "@/lib/contactNumber";
 
 export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -32,14 +34,26 @@ export default function SignUpPage() {
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [phoneError, setPhoneError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
+    if (!PHONE_PATTERN.test(phone.trim())) {
+      setPhoneError(PHONE_HINT);
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
+      return;
+    }
+
+    if (new TextEncoder().encode(password).length > 72) {
+      setError("Password must be at most 72 UTF-8 bytes. Unicode characters may use multiple bytes.");
       return;
     }
 
@@ -52,6 +66,7 @@ export default function SignUpPage() {
         lastName: lastName.trim(),
         username: username.trim(),
         email: email.trim(),
+        phone: phone.trim(),
         password,
       });
       router.push("/login?registered=1");
@@ -94,7 +109,7 @@ export default function SignUpPage() {
             {[
               { icon: Users, text: "Manage student information efficiently" },
               { icon: BookOpen, text: "Keep courses organized in one place" },
-              { icon: ShieldCheck, text: "Role-based access coming soon" },
+              { icon: ShieldCheck, text: "Secure role-based access" },
             ].map((item) => {
               const Icon = item.icon;
               return (
@@ -112,28 +127,28 @@ export default function SignUpPage() {
         </p>
       </section>
 
-      <section className="flex min-h-screen items-center justify-center px-5 py-12 sm:px-10">
+      <section className="flex min-h-screen items-center justify-center px-5 py-5 sm:px-10 sm:py-6">
         <div className="w-full max-w-md">
-          <div className="mb-8 flex items-center gap-3 lg:hidden">
+          <div className="mb-4 flex items-center gap-3 lg:hidden">
             <div className="rounded-xl bg-blue-600 p-3 text-white">
               <GraduationCap size={25} />
             </div>
             <span className="text-xl font-bold text-slate-900">StudentMS</span>
           </div>
 
-          <div className="mb-7">
-            <h2 className="text-4xl font-bold tracking-tight text-slate-900">
+          <div className="mb-4">
+            <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
               Create account
             </h2>
-            <p className="mt-3 text-slate-500">
+            <p className="mt-2 text-slate-500">
               Fill in your details to get started with StudentMS.
             </p>
           </div>
 
-          <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4 rounded-3xl border border-slate-200 bg-white p-7 shadow-xl shadow-slate-200/50 sm:p-9">
-            <div className="grid gap-4 sm:grid-cols-2">
+          <form onSubmit={(e) => void handleSubmit(e)} className="space-y-3 rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/50 sm:p-7">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label htmlFor="firstName" className="mb-2 block text-sm font-semibold text-slate-700">
+                <label htmlFor="firstName" className="mb-1.5 block text-sm font-semibold text-slate-700">
                   First name
                 </label>
                 <div className="relative">
@@ -145,12 +160,12 @@ export default function SignUpPage() {
                     autoComplete="given-name"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-11 pr-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                   />
                 </div>
               </div>
               <div>
-                <label htmlFor="lastName" className="mb-2 block text-sm font-semibold text-slate-700">
+                <label htmlFor="lastName" className="mb-1.5 block text-sm font-semibold text-slate-700">
                   Last name
                 </label>
                 <div className="relative">
@@ -162,14 +177,15 @@ export default function SignUpPage() {
                     autoComplete="family-name"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-11 pr-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                   />
                 </div>
               </div>
             </div>
 
+            <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label htmlFor="username" className="mb-2 block text-sm font-semibold text-slate-700">
+              <label htmlFor="username" className="mb-1.5 block text-sm font-semibold text-slate-700">
                 Username
               </label>
               <div className="relative">
@@ -181,13 +197,48 @@ export default function SignUpPage() {
                   autoComplete="username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-11 pr-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="email" className="mb-2 block text-sm font-semibold text-slate-700">
+              <label htmlFor="phone" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                Contact number
+              </label>
+              <div className="relative">
+                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  id="phone"
+                  type="tel"
+                  required
+                  inputMode="tel"
+                  placeholder="e.g. +94 77 123 4567"
+                  autoComplete="tel"
+                  value={phone}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    setPhoneError("");
+                  }}
+                  aria-invalid={Boolean(phoneError)}
+                  aria-describedby={phoneError ? "phone-error" : undefined}
+                  className={`w-full rounded-xl border bg-slate-50 py-2.5 pl-11 pr-4 text-sm text-slate-900 outline-none focus:ring-4 ${
+                    phoneError
+                      ? "border-red-300 focus:border-red-400 focus:ring-red-100"
+                      : "border-slate-200 focus:border-blue-500 focus:ring-blue-100"
+                  }`}
+                />
+              </div>
+              {phoneError && (
+                <p id="phone-error" className="mt-1.5 text-xs text-red-600">
+                  {phoneError}
+                </p>
+              )}
+            </div>
+            </div>
+
+            <div>
+              <label htmlFor="email" className="mb-1.5 block text-sm font-semibold text-slate-700">
                 Email address
               </label>
               <div className="relative">
@@ -200,13 +251,13 @@ export default function SignUpPage() {
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-11 pr-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="mb-2 block text-sm font-semibold text-slate-700">
+              <label htmlFor="password" className="mb-1.5 block text-sm font-semibold text-slate-700">
                 Password
               </label>
               <div className="relative">
@@ -220,7 +271,7 @@ export default function SignUpPage() {
                   placeholder="Minimum 8 characters"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-12 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-11 pr-12 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 />
                 <button
                   type="button"
@@ -234,7 +285,7 @@ export default function SignUpPage() {
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="mb-2 block text-sm font-semibold text-slate-700">
+              <label htmlFor="confirmPassword" className="mb-1.5 block text-sm font-semibold text-slate-700">
                 Confirm password
               </label>
               <div className="relative">
@@ -248,7 +299,7 @@ export default function SignUpPage() {
                   placeholder="Re-enter your password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-12 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-11 pr-12 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 />
                 <button
                   type="button"
@@ -270,7 +321,7 @@ export default function SignUpPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3.5 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting ? (
                 <>

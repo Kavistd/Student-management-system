@@ -29,7 +29,7 @@ import type { User } from "@/types/user";
 const shortcuts = [
   {
     label: "Manage students",
-    description: "Add, edit, and remove student records",
+    description: "View, edit, and remove student records",
     href: "/students",
     icon: Users,
   },
@@ -175,7 +175,7 @@ export default function AdminOverview() {
             error={students.error}
             data={studentsPerCourse}
             valueLabel="Students"
-            emptyMessage="Add student records to see how they are distributed across courses."
+            emptyMessage="Student registrations will appear here, grouped by course."
           />
         </div>
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

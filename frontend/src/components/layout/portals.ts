@@ -1,13 +1,10 @@
 import {
   BookOpen,
   LayoutDashboard,
-  Settings,
   UserCog,
   UserRound,
   Users,
 } from "lucide-react";
-
-import type { UserRole } from "@/types/user";
 
 export interface PortalNavItem {
   name: string;
@@ -17,7 +14,6 @@ export interface PortalNavItem {
 
 /** Branding and navigation for one area of the app (admin or student). */
 export interface PortalConfig {
-  role: UserRole;
   label: string;
   homeHref: string;
   navLabel: string;
@@ -25,7 +21,6 @@ export interface PortalConfig {
 }
 
 export const adminPortal: PortalConfig = {
-  role: "ADMIN",
   label: "Administration",
   homeHref: "/admin/dashboard",
   navLabel: "Management",
@@ -38,7 +33,6 @@ export const adminPortal: PortalConfig = {
 };
 
 export const studentPortal: PortalConfig = {
-  role: "STUDENT",
   label: "Student Portal",
   homeHref: "/student/dashboard",
   navLabel: "My workspace",
@@ -46,7 +40,6 @@ export const studentPortal: PortalConfig = {
     { name: "Overview", href: "/student/dashboard", icon: LayoutDashboard },
     { name: "My Profile", href: "/student/profile", icon: UserRound },
     { name: "My Courses", href: "/student/courses", icon: BookOpen },
-    { name: "Account Settings", href: "/student/settings", icon: Settings },
   ],
 };
 

@@ -23,4 +23,6 @@ public class StudentResponse {
     private String phone;
 
     private String course;
+
+    private boolean linkedAccount;
 }

@@ -1,5 +1,6 @@
 package com.studentmanagement.backend.service;
 
+import com.studentmanagement.backend.dto.request.ChangePasswordRequest;
 import com.studentmanagement.backend.dto.request.LoginRequest;
 import com.studentmanagement.backend.dto.request.RegisterRequest;
 import com.studentmanagement.backend.dto.response.AuthUserResponse;
@@ -7,6 +8,8 @@ import com.studentmanagement.backend.entity.Role;
 import com.studentmanagement.backend.entity.Student;
 import com.studentmanagement.backend.entity.User;
 import com.studentmanagement.backend.exception.AuthenticationFailedException;
+import com.studentmanagement.backend.exception.ForbiddenOperationException;
+import com.studentmanagement.backend.exception.InvalidInputException;
 import com.studentmanagement.backend.exception.InvalidRefreshTokenException;
 import com.studentmanagement.backend.repository.StudentRepository;
 import com.studentmanagement.backend.repository.UserRepository;
@@ -14,12 +17,13 @@ import com.studentmanagement.backend.security.JwtService;
 import com.studentmanagement.backend.security.LoginRateLimiter;
 import com.studentmanagement.backend.security.RefreshTokenService;
 import com.studentmanagement.backend.security.RefreshTokenService.IssuedToken;
+import com.studentmanagement.backend.util.ContactNumber;
 import com.studentmanagement.backend.util.EmailNormalizer;
-import org.springframework.http.HttpStatus;
+import com.studentmanagement.backend.util.PasswordPolicy;
+import com.studentmanagement.backend.exception.DuplicateRecordException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -68,20 +72,19 @@ public class AuthService {
     @Transactional
     public Long register(RegisterRequest request) {
 
+        PasswordPolicy.validateStudentPassword(request.password());
         String email = EmailNormalizer.normalize(request.email());
         String username = request.username().trim();
 
         if (userRepository.existsByEmailIgnoreCase(email)
                 || studentRepository.existsByEmailIgnoreCase(email)) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
+            throw new DuplicateRecordException(
                     "Email is already registered"
             );
         }
 
         if (userRepository.existsByUsername(username)) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
+            throw new DuplicateRecordException(
                     "Username is already taken"
             );
         }
@@ -98,6 +101,7 @@ public class AuthService {
         student.setFirstName(request.firstName().trim());
         student.setLastName(request.lastName().trim());
         student.setEmail(email);
+        student.setPhone(ContactNumber.normalize(request.phone()));
         student.setUser(savedUser);
 
         studentRepository.save(student);
@@ -144,6 +148,50 @@ public class AuthService {
     @Transactional
     public void logout(String refreshToken) {
         refreshTokenService.revoke(refreshToken);
+    }
+
+    /**
+     * Self-service password change for a signed-in student. The current
+     * password must be confirmed (failures count towards the sign-in rate
+     * limit). Every existing session is signed out and a new one is returned
+     * for the caller, keeping its "remember me" choice.
+     */
+    @Transactional
+    public Session changePassword(Long userId, ChangePasswordRequest request,
+                                  String clientAddress, String presentedRefreshToken) {
+
+        User user = userRepository.lockById(userId)
+                .orElseThrow(() -> new AuthenticationFailedException(
+                        "Your account is no longer available. Please sign in again."));
+        if (user.getRole() != Role.STUDENT) {
+            throw new ForbiddenOperationException(
+                    "Administrator passwords are managed with the provisioning command.");
+        }
+
+        String email = EmailNormalizer.normalize(user.getEmail());
+        rateLimiter.check(email, clientAddress);
+        if (!passwordFits(request.currentPassword())
+                || !passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+            rateLimiter.recordFailure(email, clientAddress);
+            throw new InvalidInputException("currentPassword", "Current password is incorrect");
+        }
+        rateLimiter.recordSuccess(email);
+
+        try {
+            PasswordPolicy.validateStudentPassword(request.newPassword());
+        } catch (InvalidInputException ex) {
+            throw new InvalidInputException("newPassword", ex.getMessage());
+        }
+        if (passwordEncoder.matches(request.newPassword(), user.getPassword())) {
+            throw new InvalidInputException("newPassword",
+                    "New password must be different from your current password");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
+        userRepository.saveAndFlush(user);
+
+        IssuedToken refreshToken = refreshTokenService.replaceAllSessions(user, presentedRefreshToken);
+        return new Session(toResponse(user), jwtService.issueAccessToken(user), refreshToken);
     }
 
     @Transactional(readOnly = true)

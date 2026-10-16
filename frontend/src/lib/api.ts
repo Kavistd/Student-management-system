@@ -1,8 +1,8 @@
 import axios, { type InternalAxiosRequestConfig } from "axios";
 
 /** Names must match Spring Security's cookie-based CSRF token repository. */
-export const CSRF_COOKIE = "XSRF-TOKEN";
-export const CSRF_HEADER = "X-XSRF-TOKEN";
+const CSRF_COOKIE = "XSRF-TOKEN";
+const CSRF_HEADER = "X-XSRF-TOKEN";
 
 /** Fired on `window` when the session can no longer be refreshed. */
 export const SESSION_EXPIRED_EVENT = "studentms:session-expired";
@@ -32,7 +32,7 @@ const api = axios.create({
   timeout: 10000,
 });
 
-export function readCookie(name: string): string | null {
+function readCookie(name: string): string | null {
   if (typeof document === "undefined") return null;
   for (const part of document.cookie.split(";")) {
     const [key, ...rest] = part.trim().split("=");
@@ -44,7 +44,7 @@ export function readCookie(name: string): string | null {
 let csrfRequest: Promise<void> | null = null;
 
 /** Makes sure the readable XSRF-TOKEN cookie exists before an unsafe request. */
-export function ensureCsrfToken(force = false): Promise<void> {
+function ensureCsrfToken(force = false): Promise<void> {
   if (!force && readCookie(CSRF_COOKIE)) return Promise.resolve();
   csrfRequest ??= api
     .get("/api/auth/csrf")
@@ -70,15 +70,18 @@ type RetriableConfig = InternalAxiosRequestConfig & {
   _csrfRetried?: boolean;
 };
 
-let refreshRequest: Promise<boolean> | null = null;
+type RefreshResult = boolean | "race";
+let refreshRequest: Promise<RefreshResult> | null = null;
 
 /** One refresh at a time; concurrent 401s share the same attempt. */
-function refreshSession(): Promise<boolean> {
+function refreshSession(): Promise<RefreshResult> {
   refreshRequest ??= api
     .post("/api/auth/refresh")
     .then(
-      () => true,
-      () => false
+      (): RefreshResult => true,
+      (error: unknown): RefreshResult =>
+        axios.isAxiosError(error) && error.response?.status === 401 &&
+        error.response.data?.code === "REFRESH_RACE" ? "race" : false
     )
     .finally(() => {
       refreshRequest = null;
@@ -117,17 +120,24 @@ api.interceptors.response.use(undefined, async (error: unknown) => {
   // An expired access token: rotate the refresh token, then retry once.
   if (status === 401 && !config._authRetried && !AUTH_ENDPOINTS.some((path) => url.startsWith(path))) {
     config._authRetried = true;
-    if (await refreshSession()) return api(config);
+    const refreshed = await refreshSession();
+    if (refreshed === true) return api(config);
 
-    // Another tab may have rotated the session a moment ago, updating the
-    // shared cookies; retry once with them before declaring the session over.
-    try {
-      return await api(config);
-    } catch (retryError) {
-      if (axios.isAxiosError(retryError) && retryError.response?.status === 401) {
-        notifySessionExpired();
+    // Only an explicit race gets delayed recovery. Retry protected requests with
+    // shared cookies, never expose tokens or create another refresh loop.
+    const delays = refreshed === "race" ? [100, 300, 600] : [0];
+    for (let attempt = 0; attempt < delays.length; attempt++) {
+      if (delays[attempt]) await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
+      try {
+        return await api(config);
+      } catch (retryError) {
+        const unauthorized = axios.isAxiosError(retryError) && retryError.response?.status === 401;
+        if (!unauthorized) throw retryError;
+        if (attempt === delays.length - 1) {
+          notifySessionExpired();
+          throw retryError;
+        }
       }
-      throw retryError;
     }
   }
 

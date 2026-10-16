@@ -7,8 +7,12 @@ import com.studentmanagement.backend.entity.Role;
 import com.studentmanagement.backend.entity.User;
 import com.studentmanagement.backend.exception.ForbiddenOperationException;
 import com.studentmanagement.backend.exception.ResourceNotFoundException;
+import com.studentmanagement.backend.exception.DuplicateRecordException;
 import com.studentmanagement.backend.repository.UserRepository;
 import com.studentmanagement.backend.service.UserService;
+import com.studentmanagement.backend.service.AccountDeletionService;
+import com.studentmanagement.backend.repository.StudentRepository;
+import org.springframework.transaction.annotation.Transactional;
 import com.studentmanagement.backend.util.EmailNormalizer;
 
 import lombok.RequiredArgsConstructor;
@@ -17,6 +21,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Locale;
+import com.studentmanagement.backend.exception.InvalidInputException;
+import com.studentmanagement.backend.util.PasswordPolicy;
 
 @Service
 @RequiredArgsConstructor
@@ -24,27 +30,8 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-
-    @Override
-    public UserResponse createUser(UserRequest request) {
-
-        Role role = requireNonAdminRole(request.getRole());
-        String email = EmailNormalizer.normalize(request.getEmail());
-
-        if (userRepository.existsByEmailIgnoreCase(email)) {
-            throw new IllegalArgumentException(
-                    "Email already exists: " + email
-            );
-        }
-
-        User user = new User();
-        user.setUsername(request.getUsername().trim());
-        user.setEmail(email);
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setRole(role);
-
-        return mapToResponse(userRepository.save(user));
-    }
+    private final StudentRepository studentRepository;
+    private final AccountDeletionService accountDeletion;
 
     @Override
     public List<UserResponse> getAllUsers() {
@@ -63,23 +50,30 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
     public UserResponse updateUser(Long id, UserRequest request) {
 
-        User user = findUser(id);
+        User user = userRepository.lockById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + id));
         requireNotAdminAccount(user);
         Role role = requireNonAdminRole(request.getRole());
+        PasswordPolicy.validateStudentPassword(request.getPassword());
         String email = EmailNormalizer.normalize(request.getEmail());
+        boolean linked = studentRepository.existsByUser_Id(id);
+        if (linked && !java.util.Objects.equals(EmailNormalizer.normalize(user.getEmail()), email)) {
+            throw new InvalidInputException("email", "Linked account email is read-only until verified email changes are available.");
+        }
 
         boolean takenByAnother = userRepository.findAllByEmailIgnoreCase(email).stream()
                 .anyMatch(existingUser -> !existingUser.getId().equals(id));
         if (takenByAnother) {
-            throw new IllegalArgumentException(
+            throw new DuplicateRecordException(
                     "Email already exists: " + email
             );
         }
 
         user.setUsername(request.getUsername().trim());
-        user.setEmail(email);
+        if (!linked) user.setEmail(email);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole(role);
 
@@ -89,9 +83,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public void deleteUser(Long id) {
 
-        User user = findUser(id);
-        requireNotAdminAccount(user);
-        userRepository.delete(user);
+        accountDeletion.deleteUser(id);
     }
 
     /**
@@ -134,8 +126,8 @@ public class UserServiceImpl implements UserService {
                     role.trim().toUpperCase(Locale.ROOT)
             );
         } catch (IllegalArgumentException | NullPointerException ex) {
-            throw new IllegalArgumentException(
-                    "Invalid role. Allowed values: ADMIN, STUDENT"
+            throw new InvalidInputException(
+                    "role", "Invalid role. Allowed values: ADMIN, STUDENT"
             );
         }
     }

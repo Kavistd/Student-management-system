@@ -1,12 +1,12 @@
 package com.studentmanagement.backend.controller;
 
 import com.studentmanagement.backend.dto.request.StudentRequest;
+import com.studentmanagement.backend.dto.request.UpdateProfileRequest;
 import com.studentmanagement.backend.dto.response.StudentResponse;
 import com.studentmanagement.backend.service.StudentService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -21,18 +21,6 @@ public class StudentController {
 
     private final StudentService studentService;
 
-    @PostMapping
-    public ResponseEntity<StudentResponse> createStudent(
-            @Valid @RequestBody StudentRequest request) {
-
-        StudentResponse response =
-                studentService.createStudent(request);
-
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(response);
-    }
-    
     @GetMapping
     public ResponseEntity<List<StudentResponse>> getAllStudents() {
 
@@ -46,6 +34,16 @@ public class StudentController {
 
         return ResponseEntity.ok(
                 studentService.getStudentForUser(Long.valueOf(jwt.getSubject())));
+    }
+
+    // The signed-in student edits their own name and contact number
+    @PutMapping("/me")
+    public ResponseEntity<StudentResponse> updateCurrentStudent(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody UpdateProfileRequest request) {
+
+        return ResponseEntity.ok(
+                studentService.updateStudentForUser(Long.valueOf(jwt.getSubject()), request));
     }
 
     @GetMapping("/{id}")
